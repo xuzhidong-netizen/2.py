@@ -344,6 +344,8 @@
           <button class="primary" id="loadBtn">读取文件</button>
           <button id="loadCloudBtn">加载云端前5首示例</button>
           <button id="downloadCloudBtn">下载前5首示例包</button>
+          <button id="loadCloudFullBtn">加载云端全部示例</button>
+          <button id="downloadCloudFullBtn">下载全部示例包</button>
           <button id="checkBtn">检查排曲</button>
           <button id="addPartBtn">增加分场</button>
           <button id="addSongBtn">增加舞曲</button>
@@ -463,6 +465,8 @@
     const KNOWN = new Set([...HANDLE, ...FRAME, ...BALLROOM, ...COLLECTIVE, "开场曲", "结束曲"]);
     const CLOUD_SAMPLE_URL = "./web_static/1.24-top5.zip";
     const CLOUD_PLAYLIST_URL = "./cloud_sample.json";
+    const CLOUD_FULL_URL = "https://github.com/xuzhidong-netizen/2.py/releases/download/v1.24-assets/1.24.zip";
+    const CLOUD_FULL_PLAYLIST_URL = "./cloud_full.json";
 
     const state = {
       parts: [{ part_title: "", music: [] }],
@@ -991,6 +995,45 @@
       log(`已导入云端前5首示例歌单 ${allSongs().length} 首`);
     }
 
+    async function loadCloudFullSample() {
+      log("正在加载云端全部示例歌单...");
+      const response = await fetch(CLOUD_FULL_PLAYLIST_URL, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("云端全部歌单读取失败");
+      }
+      const playlist = await response.json();
+      const tracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
+      const playableTracks = tracks.filter(track => track.audio_url);
+      if (!playableTracks.length) {
+        log("云端全部歌单暂未配置单曲直链，已为你打开全部示例包下载链接");
+        window.open(playlist.download_url || CLOUD_FULL_URL, "_blank");
+        return;
+      }
+      state.parts = [];
+      let currentPart = null;
+      let currentPartTitle = null;
+      playableTracks.forEach((track, index) => {
+        const partTitle = track.part_title || "";
+        if (!currentPart || partTitle !== currentPartTitle) {
+          currentPartTitle = partTitle;
+          currentPart = { part_title: partTitle, music: [] };
+          state.parts.push(currentPart);
+        }
+        currentPart.music.push(buildCloudSong(track, index));
+      });
+      if (playlist.title) $("titleInput").value = playlist.title;
+      if (playlist.name) $("authorInput").value = playlist.name;
+      if (playlist.club) $("clubInput").value = playlist.club;
+      if (playlist.place) $("placeInput").value = playlist.place;
+      if (playlist.date) $("dateInput").value = playlist.date;
+      if (playlist.time?.[0]) $("weekdayInput").value = playlist.time[0];
+      if (playlist.time?.[1]) $("timeInput").value = playlist.time[1];
+      renumber();
+      state.issues = [];
+      renderAll();
+      log(`已导入云端全部示例歌单 ${allSongs().length} 首`);
+    }
+
     function addPart() {
       syncStateFromTable();
       state.parts.push({ part_title: `分场${state.parts.length + 1}`, music: [] });
@@ -1022,6 +1065,11 @@
         window.open(CLOUD_SAMPLE_URL, "_blank");
       }));
       $("downloadCloudBtn").addEventListener("click", () => window.open(CLOUD_SAMPLE_URL, "_blank"));
+      $("loadCloudFullBtn").addEventListener("click", () => loadCloudFullSample().catch(err => {
+        log(`${err.message}，已打开全部示例包下载链接`);
+        window.open(CLOUD_FULL_URL, "_blank");
+      }));
+      $("downloadCloudFullBtn").addEventListener("click", () => window.open(CLOUD_FULL_URL, "_blank"));
       $("checkBtn").addEventListener("click", validateRules);
       $("addPartBtn").addEventListener("click", addPart);
       $("addSongBtn").addEventListener("click", () => addSong().catch(err => log(err.message)));

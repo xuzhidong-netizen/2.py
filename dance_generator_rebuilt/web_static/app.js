@@ -8,6 +8,8 @@ const CLUBS = [
 const PLACES = ["老年活动中心", "紫菘活动中心", "博士生之家", "韵苑体育馆", "西教工西厅", "东教工二楼"];
 const CLOUD_SAMPLE_URL = "/static/1.24-top5.zip";
 const CLOUD_PLAYLIST_URL = "/static/cloud_sample.json";
+const CLOUD_FULL_URL = "https://github.com/xuzhidong-netizen/2.py/releases/download/v1.24-assets/1.24.zip";
+const CLOUD_FULL_PLAYLIST_URL = "/static/cloud_full.json";
 
 const state = {
   danceList: null,
@@ -400,6 +402,8 @@ function wireButtons() {
   document.getElementById("loadBtn").addEventListener("click", () => handleLoad().catch((error) => log(error.message)));
   document.getElementById("loadCloudBtn").addEventListener("click", () => loadCloudSample().catch((error) => log(error.message)));
   document.getElementById("downloadCloudBtn").addEventListener("click", () => window.open(CLOUD_SAMPLE_URL, "_blank"));
+  document.getElementById("loadCloudFullBtn").addEventListener("click", () => loadCloudFullSample().catch((error) => log(error.message)));
+  document.getElementById("downloadCloudFullBtn").addEventListener("click", () => window.open(CLOUD_FULL_URL, "_blank"));
   document.getElementById("syncBtn").addEventListener("click", () => refreshState().then(() => log("列表已更新")).catch((error) => log(error.message)));
   document.getElementById("checkBtn").addEventListener("click", () => handleCheck().catch((error) => log(error.message)));
   document.getElementById("exportBtn").addEventListener("click", () => handleExport().catch((error) => log(error.message)));
@@ -453,6 +457,27 @@ async function loadCloudSample() {
   } catch (error) {
     log(`${error.message}，已打开示例包下载链接`);
     window.open(CLOUD_SAMPLE_URL, "_blank");
+  }
+}
+
+async function loadCloudFullSample() {
+  try {
+    const response = await fetch(CLOUD_FULL_PLAYLIST_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("云端全部歌单读取失败");
+    }
+    const playlist = await response.json();
+    const playableTracks = (playlist.tracks || []).filter((track) => track.audio_url);
+    if (!playableTracks.length) {
+      log("云端全部歌单暂未配置单曲直链，已打开全部示例包下载链接");
+      window.open(playlist.download_url || CLOUD_FULL_URL, "_blank");
+      return;
+    }
+    log(`云端全部歌单已配置 ${playableTracks.length} 首可直播放舞曲，当前 Web 版后续可继续接入完整导入。`);
+    window.open(playlist.download_url || CLOUD_FULL_URL, "_blank");
+  } catch (error) {
+    log(`${error.message}，已打开全部示例包下载链接`);
+    window.open(CLOUD_FULL_URL, "_blank");
   }
 }
 
