@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>舞曲生成器 Standalone</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --paper: rgba(255, 250, 242, 0.92);
+      --ink: #1d231f;
+      --muted: #61706a;
+      --line: rgba(29, 35, 31, 0.12);
+      --accent: #b3482d;
+      --accent-dark: #7d2d18;
+      --warn: #d8a320;
+      --error: #b23a33;
+      --mint: #dfe9df;
+      --shadow: 0 20px 50px rgba(52, 34, 18, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Source Han Sans SC", "Noto Sans SC", "PingFang SC", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(179, 72, 45, 0.14), transparent 28%),
+        radial-gradient(circle at right 20%, rgba(102, 126, 84, 0.14), transparent 20%),
+        linear-gradient(180deg, #efe5d7 0%, var(--bg) 40%, #f8f5ef 100%);
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) 1fr;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .panel, .workspace {
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .card {
+      padding: 18px;
+      border-radius: 22px;
+      background: var(--paper);
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    h1, h2 { margin: 0; font-family: "Source Han Serif SC", "Noto Serif SC", serif; }
+    .eyebrow {
+      margin: 0 0 8px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-dark);
+    }
+
+    .subtle, .hint { color: var(--muted); margin: 0; }
+
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .fields label:first-child,
+    .fields label:last-child {
+      grid-column: 1 / -1;
+    }
+
+    label { display: grid; gap: 6px; }
+    label span { color: var(--muted); font-size: 12px; }
+
+    input, select, button, textarea {
+      font: inherit;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.88);
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      background: #1d231f;
+      color: white;
+      padding: 10px 16px;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), #df7d46);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 14px;
+      border-radius: 16px;
+      background: var(--mint);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+    }
+
+    ul.clean {
+      list-style: none;
+      padding: 0;
+      margin: 12px 0 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    ul.clean li, .issue, .log-entry {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.68);
+    }
+
+    .issue.error { background: rgba(178,58,51,0.08); border-color: rgba(178,58,51,0.24); }
+    .issue.warn { background: rgba(216,163,32,0.08); border-color: rgba(216,163,32,0.24); }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      min-width: 30px;
+      text-align: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: white;
+      background: var(--ink);
+      font-weight: 700;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .hero-right {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .table-wrap {
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 880px;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-top: 1px solid rgba(29,35,31,0.08);
+      vertical-align: middle;
+    }
+
+    thead th {
+      border-top: 0;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+    }
+
+    .song-row { cursor: grab; }
+    .song-row.dragging { opacity: 0.4; }
+    .part-row td {
+      background: linear-gradient(90deg, rgba(179,72,45,0.12), rgba(179,72,45,0.03));
+      font-weight: 700;
+    }
+
+    .inline-input {
+      width: 100%;
+      min-width: 120px;
+      border-radius: 10px;
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 16px;
+    }
+
+    #preview {
+      width: 100%;
+      display: none;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+    }
+
+    .code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      word-break: break-all;
+    }
+
+    @media (max-width: 1100px) {
+      .page { grid-template-columns: 1fr; }
+      .preview-grid { grid-template-columns: 1fr; }
+      .hero { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside class="panel">
+      <section class="card">
+        <p class="eyebrow">Standalone HTML</p>
+        <h1>舞曲生成器</h1>
+        <p class="subtle">双击打开即可使用，不需要起本地服务。</p>
+      </section>
+
+      <section class="card">
+        <div class="fields">
+          <label>
+            <span>导入舞曲目录</span>
+            <input id="fileInput" type="file" webkitdirectory multiple>
+          </label>
+          <label>
+            <span>标题</span>
+            <input id="titleInput" value="青春舞会舞曲">
+          </label>
+          <label>
+            <span>排曲人</span>
+            <input id="authorInput" value="Guokr">
+          </label>
+          <label>
+            <span>舞协</span>
+            <select id="clubInput"></select>
+          </label>
+          <label>
+            <span>地点</span>
+            <select id="placeInput"></select>
+          </label>
+          <label>
+            <span>日期</span>
+            <input id="dateInput">
+          </label>
+          <label>
+            <span>星期</span>
+            <input id="weekdayInput">
+          </label>
+          <label>
+            <span>开始时间</span>
+            <input id="timeInput" value="19:00">
+          </label>
+        </div>
+        <div class="buttons">
+          <button class="primary" id="loadBtn">读取文件</button>
+          <button id="checkBtn">检查排曲</button>
+          <button id="addPartBtn">增加分场</button>
+          <button id="addSongBtn">增加舞曲</button>
+        </div>
+        <div class="buttons">
+          <button id="downloadTxtBtn">导出 TXT</button>
+          <button id="downloadHtmlBtn">导出 HTML</button>
+          <button id="snapshotBtn">生成页面快照</button>
+        </div>
+        <p class="hint">说明：浏览器版不能像桌面程序那样直接批量重命名/复制本地文件，但可以导出歌单文件和播放预览。</p>
+      </section>
+
+      <section class="card">
+        <div class="stats">
+          <div class="stat">
+            <strong id="countStat">0</strong>
+            <span>总曲数</span>
+          </div>
+          <div class="stat">
+            <strong id="durationStat">00:00</strong>
+            <span>总时长</span>
+          </div>
+        </div>
+        <ul class="clean" id="distributionList"></ul>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>规则检查</h2>
+          <span class="badge" id="issueCount">0</span>
+        </div>
+        <div id="issues"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>日志</h2>
+        </div>
+        <div id="log"></div>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <section class="card hero">
+        <div>
+          <p class="eyebrow">Arrangement Board</p>
+          <h2>排曲工作台</h2>
+        </div>
+        <div class="hero-right">
+          <button id="playToggleBtn">播放 / 暂停</button>
+          <audio id="player" controls></audio>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>舞曲表</h2>
+          <span>拖拽舞曲行可调整顺序</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>序号</th>
+                <th>舞曲</th>
+                <th>舞种</th>
+                <th>点播</th>
+                <th>时长</th>
+                <th>来源</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="songsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="preview-grid">
+        <section class="card">
+          <div class="section-head">
+            <h2>页面快照</h2>
+            <span id="snapshotCaption">未生成</span>
+          </div>
+          <img id="preview" alt="snapshot">
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <h2>导出说明</h2>
+          </div>
+          <ul class="clean">
+            <li>TXT 和 HTML 直接下载到浏览器默认目录。</li>
+            <li>音频读取依赖浏览器选择的本地文件，不会上传。</li>
+            <li>页面快照使用浏览器 `SVG foreignObject` 方式生成，兼容性取决于内核。</li>
+          </ul>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const CLUBS = [
+      "华中大国际标准交谊舞俱乐部",
+      "武汉大学交谊舞协会",
+      "中国地质大学（武汉）交谊舞协会",
+      "华中农业大学国标舞俱乐部"
+    ];
+    const PLACES = ["老年活动中心", "紫菘活动中心", "博士生之家", "韵苑体育馆", "西教工西厅", "东教工二楼"];
+    const HANDLE = ["伦巴", "平四", "吉特巴"];
+    const FRAME = ["慢四", "慢三", "并四", "快三", "中三", "中四"];
+    const BALLROOM = ["华尔兹", "探戈", "维也纳", "狐步", "快步", "国标伦巴", "国标恰恰", "桑巴", "牛仔", "斗牛", "阿根廷探戈"];
+    const COLLECTIVE = ["青春16步", "花火16步", "32步", "64步", "兔子舞", "集体恰恰", "阿拉伯之夜", "马卡琳娜", "玛卡琳娜", "蒙古舞"];
+    const KNOWN = new Set([...HANDLE, ...FRAME, ...BALLROOM, ...COLLECTIVE, "开场曲", "结束曲"]);
+
+    const state = {
+      parts: [{ part_title: "", music: [] }],
+      issues: [],
+      currentSong: null
+    };
+
+    const els = {};
+
+    function $(id) { return document.getElementById(id); }
+
+    function initEls() {
+      ["fileInput","titleInput","authorInput","clubInput","placeInput","dateInput","weekdayInput","timeInput","countStat","durationStat","distributionList","issues","issueCount","log","songsBody","player","preview","snapshotCaption"].forEach(id => els[id] = $(id));
+    }
+
+    function initDefaults() {
+      els.clubInput.innerHTML = CLUBS.map(v => `<option value="${v}">${v}</option>`).join("");
+      els.placeInput.innerHTML = PLACES.map(v => `<option value="${v}">${v}</option>`).join("");
+      const now = new Date();
+      const weekdays = ["周日","周一","周二","周三","周四","周五","周六"];
+      els.dateInput.value = `${now.getFullYear()}年${String(now.getMonth()+1).padStart(2,"0")}月${String(now.getDate()).padStart(2,"0")}日`;
+      els.weekdayInput.value = weekdays[now.getDay()];
+    }
+
+    function log(message) {
+      const div = document.createElement("div");
+      div.className = "log-entry";
+      div.textContent = message;
+      els.log.prepend(div);
+    }
+
+    function secondsToClock(total) {
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const seconds = total % 60;
+      return hours > 0
+        ? `${hours}:${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}`
+        : `${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}`;
+    }
+
+    function normalizeDanceLabel(label) {
+      if (label === "十八摸" || label === "马卡琳娜") return "玛卡琳娜";
+      if (label.includes("16步脱掉") || label.includes("脱掉16步")) return "青春16步";
+      if (label.includes("维也纳华尔兹")) return "维也纳";
+      if (label.includes("16步") && !label.includes("青春16步") && !label.includes("花火16步")) return label.replace("16步", "花火16步");
+      return label;
+    }
+
+    function classifyDanceType(dance) {
+      if (HANDLE.includes(dance)) return "handle";
+      if (FRAME.includes(dance)) return "frame";
+      if (BALLROOM.includes(dance)) return "ballroom";
+      if (COLLECTIVE.includes(dance)) return "collective";
+      return null;
+    }
+
+    function classifySpeed(dance) {
+      if (["伦巴","慢四","慢三","华尔兹"].includes(dance)) return "slow";
+      if (["中三","中四","并四"].includes(dance)) return "middle";
+      if (["平四","吉特巴","快三","维也纳"].includes(dance)) return "quick";
+      return null;
+    }
+
+    async function audioDuration(file) {
+      return new Promise((resolve) => {
+        const audio = document.createElement("audio");
+        const url = URL.createObjectURL(file);
+        audio.preload = "metadata";
+        audio.src = url;
+        audio.onloadedmetadata = () => {
+          const duration = Number.isFinite(audio.duration) ? Math.round(audio.duration) : 210;
+          URL.revokeObjectURL(url);
+          resolve(duration);
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          resolve(210);
+        };
+      });
+    }
+
+    async function parseSong(file, index) {
+      const duration = await audioDuration(file);
+      let name = file.name.replaceAll(" - ", "-").replaceAll("- ", "-").replaceAll(" -", "-").replaceAll("（", "(").replaceAll("）", ")").replaceAll("(1)", "").replaceAll("(2)", "");
+      const stem = name.replace(/\.[^.]+$/, "");
+      let num = index + 1;
+      let raw = stem;
+      if (stem.length >= 3 && /^\d{2}/.test(stem.slice(0,2)) && stem[2] !== "步") {
+        num = Number(stem.slice(0,2));
+        raw = stem.slice(3);
+      }
+
+      let dance = "";
+      let title = raw;
+      let other = null;
+      const firstDash = raw.indexOf("-");
+      if (firstDash !== -1) {
+        const candidate = normalizeDanceLabel(raw.slice(0, firstDash));
+        const normalized = normalizeDanceLabel(raw);
+        if (KNOWN.has(candidate)) {
+          dance = candidate;
+          const remainder = normalized.slice(firstDash + 1);
+          const secondDash = remainder.indexOf("-");
+          if (secondDash === -1 || remainder.slice(secondDash + 1).indexOf("-") === -1) {
+            title = remainder;
+          } else {
+            const thirdIndex = secondDash + 1 + remainder.slice(secondDash + 1).indexOf("-");
+            title = remainder.slice(0, thirdIndex);
+            other = remainder.slice(thirdIndex + 1);
+          }
+        }
+      }
+
+      return {
+        num,
+        dance,
+        title,
+        choose: name.includes("点播") || (other && other.includes("点播")),
+        duration,
+        other,
+        speed: classifySpeed(dance),
+        dancetype: classifyDanceType(dance),
+        source: file.webkitRelativePath || file.name,
+        file,
+        url: URL.createObjectURL(file),
+      };
+    }
+
+    function renumber() {
+      let i = 1;
+      state.parts.forEach(part => {
+        part.music.forEach(song => {
+          song.num = i++;
+          song.speed = classifySpeed(song.dance);
+          song.dancetype = classifyDanceType(song.dance);
+        });
+      });
+    }
+
+    function allSongs() {
+      return state.parts.flatMap(part => part.music);
+    }
+
+    function distribution() {
+      const dances = allSongs().map(song => song.dance);
+      const countBy = labels => labels.map(label => dances.filter(d => d === label).length);
+      const ballroom = countBy(BALLROOM);
+      ballroom[1] -= ballroom[10];
+      return {
+        handle: countBy(HANDLE),
+        frame: countBy(FRAME),
+        ballroom,
+        collective: countBy(COLLECTIVE)
+      };
+    }
+
+    function summaryLines() {
+      const dist = distribution();
+      const groups = [
+        [HANDLE, dist.handle, false],
+        [FRAME, dist.frame, false],
+        [BALLROOM, dist.ballroom, false],
+        [COLLECTIVE, dist.collective, true]
+      ];
+      return groups.map(([labels, counts, collective]) => {
+        if (collective) {
+          const once = labels.filter((_, i) => counts[i] === 1);
+          const multi = labels.filter((_, i) => counts[i] > 1).map((label, i) => {
+            const realIndex = labels.indexOf(label);
+            return `${label}${counts[realIndex]}首`;
+          });
+          let text = "";
+          if (once.length) text = once.join("、") + (once.length > 1 ? "各1首" : "1首");
+          if (multi.length) text += (text ? "、" : "") + multi.join("、");
+          return text;
+        }
+        return labels.filter((_, i) => counts[i] > 0).map((label, i) => {
+          const idx = labels.indexOf(label);
+          return `${label}${counts[idx]}首`;
+        }).join("、");
+      }).filter(Boolean);
+    }
+
+    function totalDuration() {
+      return allSongs().reduce((sum, song) => sum + song.duration, 0);
+    }
+
+    function renderStats() {
+      els.countStat.textContent = allSongs().length;
+      els.durationStat.textContent = secondsToClock(totalDuration());
+      const dist = distribution();
+      const items = [
+        `拉手舞 ${dist.handle.reduce((a,b) => a+b, 0)} 首`,
+        `架型舞 ${dist.frame.reduce((a,b) => a+b, 0)} 首`,
+        `国标舞 ${dist.ballroom.reduce((a,b) => a+b, 0)} 首`,
+        `集体舞 ${dist.collective.reduce((a,b) => a+b, 0)} 首`
+      ];
+      els.distributionList.innerHTML = items.map(item => `<li>${item}</li>`).join("");
+    }
+
+    function renderIssues() {
+      els.issueCount.textContent = state.issues.length;
+      els.issues.innerHTML = state.issues.map(issue => `<div class="issue ${issue.level}"><strong>${issue.level === "error" ? "错误" : "提醒"}</strong><div>${issue.message}</div></div>`).join("");
+    }
+
+    function renderTable() {
+      const rows = [];
+      state.parts.forEach((part, partIndex) => {
+        if (state.parts.length > 1 || part.part_title) {
+          rows.push(`<tr class="part-row" data-type="part"><td colspan="3"><input class="inline-input part-title" value="${part.part_title || `分场${partIndex + 1}`}"></td><td colspan="4">分场时长 ${secondsToClock(part.music.reduce((sum, song) => sum + song.duration, 0))}</td></tr>`);
+        }
+        part.music.forEach(song => {
+          rows.push(`
+            <tr class="song-row" draggable="true" data-type="song" data-num="${song.num}">
+              <td>${song.num}</td>
+              <td><input class="inline-input title" value="${song.title}"></td>
+              <td><input class="inline-input dance" value="${song.dance}"></td>
+              <td><input type="checkbox" class="choose" ${song.choose ? "checked" : ""}></td>
+              <td>${secondsToClock(song.duration)}</td>
+              <td class="code">${song.source}</td>
+              <td><button class="play-row">播放</button> <button class="delete-row">删除</button></td>
+            </tr>
+          `);
+        });
+      });
+      els.songsBody.innerHTML = rows.join("");
+      bindTableActions();
+    }
+
+    function syncStateFromTable() {
+      const rows = [...els.songsBody.querySelectorAll("tr")];
+      const parts = [];
+      let currentPart = null;
+      let songIndex = 0;
+      rows.forEach(row => {
+        if (row.dataset.type === "part") {
+          currentPart = { part_title: row.querySelector(".part-title").value.trim(), music: [] };
+          parts.push(currentPart);
+        } else {
+          if (!currentPart) {
+            currentPart = { part_title: "", music: [] };
+            parts.push(currentPart);
+          }
+          const original = allSongs()[songIndex++];
+          original.title = row.querySelector(".title").value.trim();
+          original.dance = row.querySelector(".dance").value.trim();
+          original.choose = row.querySelector(".choose").checked;
+          currentPart.music.push(original);
+        }
+      });
+      state.parts = parts.length ? parts : [{ part_title: "", music: [] }];
+      renumber();
+    }
+
+    function bindTableActions() {
+      let dragged = null;
+      [...els.songsBody.querySelectorAll(".song-row")].forEach(row => {
+        row.addEventListener("dragstart", () => {
+          dragged = row;
+          row.classList.add("dragging");
+        });
+        row.addEventListener("dragend", () => {
+          row.classList.remove("dragging");
+          dragged = null;
+          syncStateFromTable();
+          renderAll();
+        });
+        row.addEventListener("dragover", event => {
+          event.preventDefault();
+          if (!dragged || dragged === row) return;
+          const rect = row.getBoundingClientRect();
+          const before = event.clientY < rect.top + rect.height / 2;
+          row.parentNode.insertBefore(dragged, before ? row : row.nextSibling);
+        });
+        row.querySelector(".play-row").addEventListener("click", () => {
+          const index = Number(row.dataset.num) - 1;
+          const song = allSongs()[index];
+          if (!song) return;
+          state.currentSong = song;
+          els.player.src = song.url;
+          els.player.play().catch(() => {});
+        });
+        row.querySelector(".delete-row").addEventListener("click", () => {
+          const index = Number(row.dataset.num) - 1;
+          const song = allSongs()[index];
+          state.parts.forEach(part => {
+            const i = part.music.indexOf(song);
+            if (i !== -1) part.music.splice(i, 1);
+          });
+          renumber();
+          renderAll();
+          log("已删除舞曲");
+        });
+      });
+    }
+
+    function renderAll() {
+      renderStats();
+      renderIssues();
+      renderTable();
+    }
+
+    function validateRules() {
+      syncStateFromTable();
+      const issues = [];
+      const songs = allSongs();
+      const dist = distribution();
+      COLLECTIVE.forEach((dance, i) => {
+        if (dist.collective[i] > 1) issues.push({ level: "error", message: `${dance} 重复` });
+      });
+      let previous = null;
+      const sourceCounts = new Map();
+      songs.forEach(song => sourceCounts.set(song.source, (sourceCounts.get(song.source) || 0) + 1));
+      songs.forEach(song => {
+        if (song.speed === "quick" && song.duration >= 240) issues.push({ level: "error", message: `${song.title} 时长超过 4 分钟` });
+        else if (song.duration >= 270) issues.push({ level: "error", message: `${song.title} 时长超过 4 分 30 秒` });
+        else if (song.duration >= 240) issues.push({ level: "warn", message: `${song.title} 时长超过 4 分钟` });
+
+        if (!song.dancetype) issues.push({ level: "error", message: `${song.title} 无法识别舞种` });
+        else if (previous) {
+          if (song.dancetype === previous.dancetype && song.dancetype !== "collective") issues.push({ level: "error", message: `${song.title} 违反舞种相间规则` });
+          if (song.speed === previous.speed && song.speed) issues.push({ level: song.speed === "quick" ? "error" : "warn", message: `${song.title} 违反快慢相间规则` });
+        }
+        if ((sourceCounts.get(song.source) || 0) > 1) issues.push({ level: "error", message: `${song.title} 重复` });
+        previous = song;
+      });
+      state.issues = issues;
+      renderIssues();
+      log(`规则检查完成，共 ${issues.length} 条提示`);
+    }
+
+    function currentMeta() {
+      return {
+        title: els.titleInput.value.trim(),
+        name: els.authorInput.value.trim(),
+        date: els.dateInput.value.trim(),
+        club: els.clubInput.value,
+        place: els.placeInput.value,
+        time: [els.weekdayInput.value.trim(), els.timeInput.value.trim()].filter(Boolean)
+      };
+    }
+
+    function buildTxt() {
+      syncStateFromTable();
+      const meta = currentMeta();
+      const lines = [
+        `本次舞曲由 ${meta.name} 编排，共${allSongs().length}首曲子（包括清场与开场曲目），总时长为${Math.floor(totalDuration()/3600)}小时${Math.floor((totalDuration()%3600)/60)}分${totalDuration()%60}秒。`,
+        "",
+        ...summaryLines(),
+        ""
+      ];
+      state.parts.forEach(part => {
+        if (part.part_title) lines.push(`=====${part.part_title}=====`);
+        part.music.forEach(song => lines.push(`${String(song.num).padStart(2,"0")}-${song.dance}-${song.title} (${secondsToClock(song.duration)})`));
+      });
+      lines.push("", meta.date);
+      return lines.join("\n");
+    }
+
+    function buildExportHtml() {
+      syncStateFromTable();
+      const meta = currentMeta();
+      const rows = state.parts.map(part => {
+        const songs = part.music.map(song => `<tr><td>${String(song.num).padStart(2,"0")}</td><td>${song.dance}-${song.title}</td><td>${secondsToClock(song.duration)}</td></tr>`).join("");
+        const head = part.part_title ? `<h3>${part.part_title}</h3>` : "";
+        return `${head}<table border="1" cellspacing="0" cellpadding="8"><tr><th>序号</th><th>舞曲</th><th>时长</th></tr>${songs}</table>`;
+      }).join("");
+      return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${meta.title}</title><style>body{font-family:"Source Han Sans SC","Noto Sans SC",sans-serif;padding:24px;color:#222}h1,h2,h3{font-family:"Source Han Serif SC","Noto Serif SC",serif}table{width:100%;margin:12px 0;border-collapse:collapse}th,td{text-align:left} .meta,.dist{margin:16px 0}</style></head><body><h1>${meta.title}</h1><div class="meta">本次舞曲由 ${meta.name} 编排，共 ${allSongs().length} 首，总时长 ${secondsToClock(totalDuration())}。<br>${meta.place} ${meta.time.join(" ")}<br>${meta.date}</div><div class="dist">${summaryLines().join("<br>")}</div>${rows}</body></html>`;
+    }
+
+    function download(filename, content, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function buildSnapshot() {
+      const node = document.querySelector(".workspace");
+      const clone = node.cloneNode(true);
+      clone.querySelectorAll("audio,button").forEach(el => el.remove());
+      const wrapper = document.createElement("div");
+      wrapper.style.width = "1200px";
+      wrapper.style.padding = "24px";
+      wrapper.style.background = "#fffaf2";
+      wrapper.appendChild(clone);
+      const data = new XMLSerializer().serializeToString(wrapper);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1248" height="1600"><foreignObject width="100%" height="100%">${data.replace(/#/g, "%23").replace(/\n/g, " ")}</foreignObject></svg>`;
+      const url = "data:image/svg+xml;charset=utf-8," + svg;
+      els.preview.src = url;
+      els.preview.style.display = "block";
+      els.snapshotCaption.textContent = "已生成浏览器内快照";
+      log("已生成页面快照");
+    }
+
+    async function loadFiles() {
+      const files = [...els.fileInput.files].filter(file => /\.(mp3|wma|ogg|m4a|flac)$/i.test(file.name));
+      if (!files.length) {
+        log("没有可读取的音频文件");
+        return;
+      }
+      state.parts = [];
+      let currentPart = null;
+      let currentFolder = null;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const song = await parseSong(file, i);
+        const rel = file.webkitRelativePath || file.name;
+        const folder = rel.includes("/") ? rel.split("/").slice(-2, -1)[0] : "";
+        if (!currentPart || folder !== currentFolder) {
+          currentFolder = folder;
+          currentPart = { part_title: folder, music: [] };
+          state.parts.push(currentPart);
+        }
+        currentPart.music.push(song);
+      }
+      renumber();
+      state.issues = [];
+      renderAll();
+      log(`已读取 ${allSongs().length} 首舞曲`);
+    }
+
+    function addPart() {
+      syncStateFromTable();
+      state.parts.push({ part_title: `分场${state.parts.length + 1}`, music: [] });
+      renderAll();
+      log("已增加分场");
+    }
+
+    async function addSong() {
+      const picker = document.createElement("input");
+      picker.type = "file";
+      picker.accept = ".mp3,.wma,.ogg,.m4a,.flac";
+      picker.onchange = async () => {
+        const file = picker.files && picker.files[0];
+        if (!file) return;
+        syncStateFromTable();
+        const song = await parseSong(file, allSongs().length);
+        state.parts[state.parts.length - 1].music.push(song);
+        renumber();
+        renderAll();
+        log("已增加舞曲");
+      };
+      picker.click();
+    }
+
+    function bindTopActions() {
+      $("loadBtn").addEventListener("click", () => loadFiles().catch(err => log(err.message)));
+      $("checkBtn").addEventListener("click", validateRules);
+      $("addPartBtn").addEventListener("click", addPart);
+      $("addSongBtn").addEventListener("click", () => addSong().catch(err => log(err.message)));
+      $("downloadTxtBtn").addEventListener("click", () => download("舞曲列表.txt", buildTxt(), "text/plain;charset=utf-8"));
+      $("downloadHtmlBtn").addEventListener("click", () => download("song-list.html", buildExportHtml(), "text/html;charset=utf-8"));
+      $("snapshotBtn").addEventListener("click", () => buildSnapshot().catch(err => log(err.message)));
+      $("playToggleBtn").addEventListener("click", () => {
+        if (els.player.paused) els.player.play().catch(() => {});
+        else els.player.pause();
+      });
+    }
+
+    initEls();
+    initDefaults();
+    bindTopActions();
+    renderAll();
+  </script>
+</body>
+</html>

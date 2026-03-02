@@ -10,6 +10,8 @@
 *.spec
 # *.png
 *.html
+!index.html
+!dance_generator_rebuilt/standalone.html
 /.idea
 /.vscode
 /cache
