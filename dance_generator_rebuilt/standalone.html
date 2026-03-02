@@ -342,8 +342,8 @@
         </div>
         <div class="buttons">
           <button class="primary" id="loadBtn">读取文件</button>
-          <button id="loadCloudBtn">加载云端示例舞曲</button>
-          <button id="downloadCloudBtn">下载示例包</button>
+          <button id="loadCloudBtn">加载云端前5首示例</button>
+          <button id="downloadCloudBtn">下载前5首示例包</button>
           <button id="checkBtn">检查排曲</button>
           <button id="addPartBtn">增加分场</button>
           <button id="addSongBtn">增加舞曲</button>
@@ -461,7 +461,8 @@
     const BALLROOM = ["华尔兹", "探戈", "维也纳", "狐步", "快步", "国标伦巴", "国标恰恰", "桑巴", "牛仔", "斗牛", "阿根廷探戈"];
     const COLLECTIVE = ["青春16步", "花火16步", "32步", "64步", "兔子舞", "集体恰恰", "阿拉伯之夜", "马卡琳娜", "玛卡琳娜", "蒙古舞"];
     const KNOWN = new Set([...HANDLE, ...FRAME, ...BALLROOM, ...COLLECTIVE, "开场曲", "结束曲"]);
-    const CLOUD_SAMPLE_URL = "https://github.com/xuzhidong-netizen/2.py/releases/download/v1.24-assets/1.24.zip";
+    const CLOUD_SAMPLE_URL = "./web_static/1.24-top5.zip";
+    const CLOUD_PLAYLIST_URL = "./cloud_sample.json";
 
     const state = {
       parts: [{ part_title: "", music: [] }],
@@ -510,6 +511,22 @@
       if (label.includes("维也纳华尔兹")) return "维也纳";
       if (label.includes("16步") && !label.includes("青春16步") && !label.includes("花火16步")) return label.replace("16步", "花火16步");
       return label;
+    }
+
+    function buildCloudSong(track, index) {
+      return {
+        num: track.num ?? index + 1,
+        dance: track.dance || "",
+        title: track.title || "",
+        choose: Boolean(track.choose),
+        duration: Number(track.duration || 210),
+        other: track.other || null,
+        speed: classifySpeed(track.dance || ""),
+        dancetype: classifyDanceType(track.dance || ""),
+        source: track.source || `${track.dance || ""}-${track.title || ""}`,
+        file: null,
+        url: track.audio_url || "",
+      };
     }
 
     function classifyDanceType(dance) {
@@ -936,49 +953,42 @@
     }
 
     async function loadCloudSample() {
-      if (typeof JSZip === "undefined") {
-        log("云端示例功能加载失败，已为你打开下载链接");
-        window.open(CLOUD_SAMPLE_URL, "_blank");
-        return;
-      }
-      log("正在加载云端示例舞曲包...");
-      const response = await fetch(CLOUD_SAMPLE_URL);
+      log("正在加载云端前5首示例歌单...");
+      const response = await fetch(CLOUD_PLAYLIST_URL, { cache: "no-store" });
       if (!response.ok) {
-        throw new Error("云端示例包下载失败");
+        throw new Error("云端歌单读取失败");
       }
-      const blob = await response.blob();
-      const zip = await JSZip.loadAsync(blob);
-      const entries = Object.values(zip.files).filter(entry => !entry.dir && /\.(mp3|wma|ogg|m4a|flac)$/i.test(entry.name));
-      if (!entries.length) {
-        throw new Error("示例包中没有可用音频文件");
+      const playlist = await response.json();
+      const tracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
+      const playableTracks = tracks.filter(track => track.audio_url);
+      if (!playableTracks.length) {
+        log("云端歌单暂未配置单曲直链，已为你打开前5首示例包下载链接");
+        window.open(playlist.download_url || CLOUD_SAMPLE_URL, "_blank");
+        return;
       }
       state.parts = [];
       let currentPart = null;
-      let currentFolder = null;
-      for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i];
-        const content = await entry.async("blob");
-        const relativeName = entry.name.split("/").slice(1).join("/") || entry.name;
-        const filename = relativeName.split("/").pop();
-        const file = new File([content], filename, { type: content.type || "audio/mpeg" });
-        Object.defineProperty(file, "webkitRelativePath", {
-          value: relativeName,
-          configurable: true
-        });
-        const song = await parseSong(file, i);
-        song.source = relativeName;
-        const folder = relativeName.includes("/") ? relativeName.split("/").slice(-2, -1)[0] : "";
-        if (!currentPart || folder !== currentFolder) {
-          currentFolder = folder;
-          currentPart = { part_title: folder, music: [] };
+      let currentPartTitle = null;
+      playableTracks.forEach((track, index) => {
+        const partTitle = track.part_title || "";
+        if (!currentPart || partTitle !== currentPartTitle) {
+          currentPartTitle = partTitle;
+          currentPart = { part_title: partTitle, music: [] };
           state.parts.push(currentPart);
         }
-        currentPart.music.push(song);
-      }
+        currentPart.music.push(buildCloudSong(track, index));
+      });
+      if (playlist.title) $("titleInput").value = playlist.title;
+      if (playlist.name) $("authorInput").value = playlist.name;
+      if (playlist.club) $("clubInput").value = playlist.club;
+      if (playlist.place) $("placeInput").value = playlist.place;
+      if (playlist.date) $("dateInput").value = playlist.date;
+      if (playlist.time?.[0]) $("weekdayInput").value = playlist.time[0];
+      if (playlist.time?.[1]) $("timeInput").value = playlist.time[1];
       renumber();
       state.issues = [];
       renderAll();
-      log(`已导入云端示例舞曲 ${allSongs().length} 首`);
+      log(`已导入云端前5首示例歌单 ${allSongs().length} 首`);
     }
 
     function addPart() {

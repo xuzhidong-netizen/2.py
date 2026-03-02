@@ -6,7 +6,8 @@ const CLUBS = [
 ];
 
 const PLACES = ["老年活动中心", "紫菘活动中心", "博士生之家", "韵苑体育馆", "西教工西厅", "东教工二楼"];
-const CLOUD_SAMPLE_URL = "https://github.com/xuzhidong-netizen/2.py/releases/download/v1.24-assets/1.24.zip";
+const CLOUD_SAMPLE_URL = "/static/1.24-top5.zip";
+const CLOUD_PLAYLIST_URL = "/static/cloud_sample.json";
 
 const state = {
   danceList: null,
@@ -435,8 +436,24 @@ function initDefaults() {
 }
 
 async function loadCloudSample() {
-  log("云端示例包是公开 zip，当前 Web 版先提供直接下载入口");
-  window.open(CLOUD_SAMPLE_URL, "_blank");
+  try {
+    const response = await fetch(CLOUD_PLAYLIST_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("云端歌单读取失败");
+    }
+    const playlist = await response.json();
+    const playableTracks = (playlist.tracks || []).filter((track) => track.audio_url);
+    if (!playableTracks.length) {
+      log("云端歌单暂未配置单曲直链，已打开前5首示例包下载链接");
+      window.open(playlist.download_url || CLOUD_SAMPLE_URL, "_blank");
+      return;
+    }
+    log(`云端歌单已配置 ${playableTracks.length} 首可直播放舞曲，当前 Web 版后续可继续接入完整导入。`);
+    window.open(playlist.download_url || CLOUD_SAMPLE_URL, "_blank");
+  } catch (error) {
+    log(`${error.message}，已打开示例包下载链接`);
+    window.open(CLOUD_SAMPLE_URL, "_blank");
+  }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
