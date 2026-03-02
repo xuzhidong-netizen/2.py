@@ -576,8 +576,8 @@
         </div>
         <div class="buttons">
           <button id="downloadTxtBtn">导出 TXT</button>
-          <button id="downloadHtmlBtn">导出 HTML</button>
-          <button id="snapshotBtn">生成页面快照</button>
+          <button id="downloadHtmlBtn">打开大屏页面</button>
+          <button id="snapshotBtn">打开快照大屏</button>
         </div>
         <p class="hint">说明：浏览器版不能像桌面程序那样直接批量重命名/复制本地文件，但可以导出歌单文件和播放预览。</p>
       </section>
@@ -660,7 +660,7 @@
             <div class="snapshot-placeholder" id="snapshotPlaceholder">
               <div>
                 <strong>舞曲舞台预览</strong>
-                <span>点击“生成页面快照”后，这里会展示一张带动效入场的页面快照。</span>
+                <span>点击按钮后会直接打开一个带动效的大屏展示页，并同步当前正在播放的舞曲。</span>
               </div>
             </div>
             <img id="preview" alt="snapshot">
@@ -709,6 +709,8 @@
     };
 
     const els = {};
+    let stageWindow = null;
+    let stageChannel = null;
 
     function $(id) { return document.getElementById(id); }
 
@@ -721,6 +723,12 @@
       document.body.appendChild(link);
       link.click();
       link.remove();
+    }
+
+    function ensureStageChannel() {
+      if (!("BroadcastChannel" in window)) return null;
+      if (!stageChannel) stageChannel = new BroadcastChannel("dance-stage");
+      return stageChannel;
     }
 
     function initEls() {
@@ -915,6 +923,13 @@
       return allSongs().reduce((sum, song) => sum + song.duration, 0);
     }
 
+    function currentSongLabel() {
+      const songs = allSongs();
+      const current = songs[state.currentAudioIndex] || state.currentSong;
+      if (!current) return "等待播放";
+      return `${String(current.num).padStart(2,"0")} ${current.dance || "未分类"} - ${current.title || "未命名"}`;
+    }
+
     function renderStats() {
       els.countStat.textContent = allSongs().length;
       els.durationStat.textContent = secondsToClock(totalDuration());
@@ -1039,6 +1054,7 @@
       if (activeRow) {
         activeRow.scrollIntoView({ behavior: "smooth", block: "center" });
       }
+      broadcastStageState();
     }
 
     function playSongAtIndex(index, sequenceMode = state.sequenceMode) {
@@ -1116,6 +1132,310 @@
       };
     }
 
+    function buildStagePayload() {
+      syncStateFromTable();
+      const meta = currentMeta();
+      return {
+        meta,
+        summaryLines: summaryLines(),
+        totalSongs: allSongs().length,
+        totalDuration: secondsToClock(totalDuration()),
+        currentAudioIndex: state.currentAudioIndex,
+        currentSongLabel: currentSongLabel(),
+        parts: state.parts.map((part, partIndex) => ({
+          part_title: part.part_title || (state.parts.length > 1 ? `分场${partIndex + 1}` : ""),
+          duration: secondsToClock(part.music.reduce((sum, song) => sum + song.duration, 0)),
+          music: part.music.map(song => ({
+            num: song.num,
+            dance: song.dance || "",
+            title: song.title || "",
+            choose: Boolean(song.choose),
+            duration: secondsToClock(song.duration),
+            source: song.source || "",
+            is_playing: song.num === state.currentAudioIndex + 1
+          }))
+        }))
+      };
+    }
+
+    function renderStageMarkup(payload) {
+      const summary = payload.summaryLines.map(line => `<span class="stage-chip">${line}</span>`).join("");
+      const sections = payload.parts.map((part, partIndex) => {
+        const songs = part.music.map(song => `
+          <tr class="${song.is_playing ? "is-playing" : ""}">
+            <td>${String(song.num).padStart(2, "0")}</td>
+            <td>${song.dance || "未分类"}</td>
+            <td>${song.title || "未命名"}</td>
+            <td>${song.choose ? "点播" : "-"}</td>
+            <td>${song.duration}</td>
+          </tr>
+        `).join("");
+        return `
+          <section class="stage-section">
+            <div class="stage-section-head">
+              <h3>${part.part_title || `分场${partIndex + 1}`}</h3>
+              <span>${part.duration}</span>
+            </div>
+            <table class="stage-table">
+              <thead>
+                <tr><th>序号</th><th>舞种</th><th>舞曲</th><th>点播</th><th>时长</th></tr>
+              </thead>
+              <tbody>${songs}</tbody>
+            </table>
+          </section>
+        `;
+      }).join("");
+      return `
+        <div class="stage-shell">
+          <section class="stage-hero">
+            <div class="stage-copy">
+              <p class="stage-eyebrow">Live Dance Screen</p>
+              <h1>${payload.meta.title || "青春舞会舞曲"}</h1>
+              <p class="stage-meta">${payload.meta.club || ""} ${payload.meta.place || ""}</p>
+              <p class="stage-meta">${[payload.meta.date, ...(payload.meta.time || [])].filter(Boolean).join(" ")}</p>
+            </div>
+            <div class="stage-now ${payload.totalSongs ? "is-live" : ""}">
+              <span class="stage-now-label">当前播放</span>
+              <strong>${payload.currentSongLabel}</strong>
+              <em>共 ${payload.totalSongs} 首 / 总时长 ${payload.totalDuration}</em>
+            </div>
+          </section>
+          <section class="stage-summary">${summary || '<span class="stage-chip">等待舞曲数据</span>'}</section>
+          <section class="stage-board">${sections || '<div class="stage-empty">当前还没有可展示的舞曲列表</div>'}</section>
+        </div>
+      `;
+    }
+
+    function buildStageHtml(payload) {
+      const payloadJson = JSON.stringify(payload).replace(/</g, "\\u003c");
+      return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${payload.meta.title || "舞会大屏"}</title>
+  <style>
+    :root {
+      --bg: #140f0d;
+      --panel: rgba(30, 22, 17, 0.82);
+      --panel-soft: rgba(255, 245, 236, 0.08);
+      --ink: #fff7ef;
+      --muted: rgba(255, 247, 239, 0.7);
+      --accent: #ff8e49;
+      --accent-soft: rgba(255, 142, 73, 0.18);
+      --line: rgba(255,255,255,0.1);
+      --glow: 0 30px 80px rgba(0,0,0,0.28);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Source Han Sans SC", "Noto Sans SC", "PingFang SC", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255, 142, 73, 0.32), transparent 24%),
+        radial-gradient(circle at 80% 20%, rgba(109, 156, 124, 0.2), transparent 20%),
+        linear-gradient(180deg, #1b1410 0%, #120d0a 100%);
+    }
+    .stage-shell {
+      padding: 32px;
+      display: grid;
+      gap: 24px;
+    }
+    .stage-hero {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+    .stage-copy, .stage-now, .stage-section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--glow);
+      backdrop-filter: blur(16px);
+    }
+    .stage-copy {
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stage-copy::after, .stage-now::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 28%, rgba(255,255,255,0.12) 48%, transparent 72%);
+      transform: translateX(-140%);
+      animation: stageSweep 6s linear infinite;
+      pointer-events: none;
+    }
+    .stage-eyebrow {
+      margin: 0 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #ffbb90;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    h1, h3 { margin: 0; font-family: "Source Han Serif SC", "Noto Serif SC", serif; }
+    h1 { font-size: clamp(34px, 5vw, 64px); line-height: 1.06; margin-bottom: 16px; }
+    .stage-meta {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+    .stage-now {
+      position: relative;
+      padding: 28px;
+      display: grid;
+      align-content: center;
+      gap: 14px;
+      overflow: hidden;
+    }
+    .stage-now.is-live {
+      box-shadow: 0 0 0 1px rgba(255,142,73,0.2), 0 30px 80px rgba(0,0,0,0.28);
+    }
+    .stage-now.is-live::before {
+      content: "";
+      position: absolute;
+      left: 28px;
+      top: 30px;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: #ff8e49;
+      box-shadow: 0 0 0 0 rgba(255, 142, 73, 0.52);
+      animation: livePulse 1.6s ease-out infinite;
+    }
+    .stage-now-label {
+      padding-left: 24px;
+      color: #ffbb90;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .stage-now strong {
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: 1.08;
+    }
+    .stage-now em {
+      color: var(--muted);
+      font-style: normal;
+      font-size: 18px;
+    }
+    .stage-summary {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .stage-chip {
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      border: 1px solid rgba(255, 142, 73, 0.26);
+      color: #ffd8bf;
+    }
+    .stage-board {
+      display: grid;
+      gap: 18px;
+    }
+    .stage-section {
+      padding: 20px;
+      animation: sectionLift 480ms ease both;
+      background: linear-gradient(180deg, rgba(30, 22, 17, 0.92), rgba(26, 18, 14, 0.84));
+    }
+    .stage-section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .stage-section-head span {
+      color: var(--muted);
+    }
+    .stage-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 18px;
+    }
+    .stage-table th, .stage-table td {
+      text-align: left;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .stage-table th {
+      color: #ffbb90;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.03);
+    }
+    .stage-table tbody tr {
+      background: rgba(255,255,255,0.02);
+      transition: transform 220ms ease, background 220ms ease, box-shadow 220ms ease;
+    }
+    .stage-table tbody tr.is-playing {
+      background: linear-gradient(90deg, rgba(255,142,73,0.22), rgba(255,142,73,0.06));
+      box-shadow: inset 6px 0 0 #ff8e49;
+      transform: translateX(4px);
+    }
+    .stage-empty {
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      background: var(--panel);
+      border-radius: 24px;
+      border: 1px solid var(--line);
+    }
+    @keyframes livePulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 142, 73, 0.52); }
+      70% { box-shadow: 0 0 0 16px rgba(255, 142, 73, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 142, 73, 0); }
+    }
+    @keyframes stageSweep {
+      from { transform: translateX(-140%); }
+      to { transform: translateX(160%); }
+    }
+    @keyframes sectionLift {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 900px) {
+      .stage-shell { padding: 18px; }
+      .stage-hero { grid-template-columns: 1fr; }
+      .stage-table { min-width: 720px; display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    const initialPayload = ${payloadJson};
+    const channel = "BroadcastChannel" in window ? new BroadcastChannel("dance-stage") : null;
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function render(payload) {
+      const summary = (payload.summaryLines || []).map(line => '<span class="stage-chip">' + escapeHtml(line) + '</span>').join("");
+      const sections = (payload.parts || []).map((part, partIndex) => {
+        const songs = (part.music || []).map(song => '<tr class="' + (song.is_playing ? 'is-playing' : '') + '"><td>' + String(song.num).padStart(2, '0') + '</td><td>' + escapeHtml(song.dance || '未分类') + '</td><td>' + escapeHtml(song.title || '未命名') + '</td><td>' + (song.choose ? '点播' : '-') + '</td><td>' + escapeHtml(song.duration) + '</td></tr>').join("");
+        return '<section class="stage-section"><div class="stage-section-head"><h3>' + escapeHtml(part.part_title || ('分场' + (partIndex + 1))) + '</h3><span>' + escapeHtml(part.duration || '') + '</span></div><table class="stage-table"><thead><tr><th>序号</th><th>舞种</th><th>舞曲</th><th>点播</th><th>时长</th></tr></thead><tbody>' + songs + '</tbody></table></section>';
+      }).join("");
+      document.getElementById("app").innerHTML = '<div class="stage-shell"><section class="stage-hero"><div class="stage-copy"><p class="stage-eyebrow">Live Dance Screen</p><h1>' + escapeHtml(payload.meta?.title || '青春舞会舞曲') + '</h1><p class="stage-meta">' + escapeHtml((payload.meta?.club || '') + ' ' + (payload.meta?.place || '')) + '</p><p class="stage-meta">' + escapeHtml([payload.meta?.date, ...((payload.meta?.time || []).filter(Boolean))].filter(Boolean).join(' ')) + '</p></div><div class="stage-now ' + (payload.totalSongs ? 'is-live' : '') + '"><span class="stage-now-label">当前播放</span><strong>' + escapeHtml(payload.currentSongLabel || '等待播放') + '</strong><em>共 ' + escapeHtml(payload.totalSongs || 0) + ' 首 / 总时长 ' + escapeHtml(payload.totalDuration || '00:00') + '</em></div></section><section class="stage-summary">' + (summary || '<span class="stage-chip">等待舞曲数据</span>') + '</section><section class="stage-board">' + (sections || '<div class="stage-empty">当前还没有可展示的舞曲列表</div>') + '</section></div>';
+    }
+    window.renderStagePage = render;
+    render(initialPayload);
+    if (channel) {
+      channel.onmessage = (event) => render(event.data);
+    }
+  </script>
+</body>
+</html>`;
+    }
+
     function buildTxt() {
       syncStateFromTable();
       const meta = currentMeta();
@@ -1134,14 +1454,37 @@
     }
 
     function buildExportHtml() {
-      syncStateFromTable();
-      const meta = currentMeta();
-      const rows = state.parts.map(part => {
-        const songs = part.music.map(song => `<tr><td>${String(song.num).padStart(2,"0")}</td><td>${song.dance}-${song.title}</td><td>${secondsToClock(song.duration)}</td></tr>`).join("");
-        const head = part.part_title ? `<h3>${part.part_title}</h3>` : "";
-        return `${head}<table border="1" cellspacing="0" cellpadding="8"><tr><th>序号</th><th>舞曲</th><th>时长</th></tr>${songs}</table>`;
-      }).join("");
-      return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${meta.title}</title><style>body{font-family:"Source Han Sans SC","Noto Sans SC",sans-serif;padding:24px;color:#222}h1,h2,h3{font-family:"Source Han Serif SC","Noto Serif SC",serif}table{width:100%;margin:12px 0;border-collapse:collapse}th,td{text-align:left} .meta,.dist{margin:16px 0}</style></head><body><h1>${meta.title}</h1><div class="meta">本次舞曲由 ${meta.name} 编排，共 ${allSongs().length} 首，总时长 ${secondsToClock(totalDuration())}。<br>${meta.place} ${meta.time.join(" ")}<br>${meta.date}</div><div class="dist">${summaryLines().join("<br>")}</div>${rows}</body></html>`;
+      return buildStageHtml(buildStagePayload());
+    }
+
+    function openStageView(mode = "stage") {
+      const payload = buildStagePayload();
+      const html = buildStageHtml(payload);
+      stageWindow = window.open("", "_blank");
+      if (!stageWindow) throw new Error("浏览器阻止了大屏页面弹出");
+      stageWindow.document.open();
+      stageWindow.document.write(html);
+      stageWindow.document.close();
+      stageWindow.focus();
+      els.snapshotStage.classList.remove("is-generating", "has-image");
+      els.snapshotStage.classList.add("is-ready");
+      els.preview.removeAttribute("src");
+      els.preview.style.display = "none";
+      els.snapshotCaption.textContent = "已打开大屏展示页";
+      els.snapshotPlaceholder.innerHTML = `<div><strong>大屏已打开</strong><span>${mode === "snapshot" ? "当前页面已跳转为动态快照大屏。" : "当前页面已跳转为舞会 HTML 大屏。"} 后续播放切换也会同步更新。</span></div>`;
+      const channel = ensureStageChannel();
+      if (channel) channel.postMessage(payload);
+      log(mode === "snapshot" ? "已打开快照大屏页面" : "已打开大屏 HTML 页面");
+    }
+
+    function broadcastStageState() {
+      if ((!stageWindow || stageWindow.closed) && !stageChannel) return;
+      const payload = buildStagePayload();
+      if (stageWindow && !stageWindow.closed && typeof stageWindow.renderStagePage === "function") {
+        stageWindow.renderStagePage(payload);
+      }
+      const channel = ensureStageChannel();
+      if (channel) channel.postMessage(payload);
     }
 
     function download(filename, content, type) {
@@ -1158,30 +1501,14 @@
       els.snapshotBtn.classList.add("is-generating");
       els.snapshotStage.classList.remove("has-image", "is-ready");
       els.snapshotStage.classList.add("is-generating");
-      els.snapshotCaption.textContent = "正在生成快照...";
-      els.snapshotPlaceholder.innerHTML = `<div><strong>快照渲染中</strong><span>正在整理工作台布局、标题信息和舞曲表，请稍候片刻。</span></div>`;
+      els.snapshotCaption.textContent = "正在打开大屏...";
+      els.snapshotPlaceholder.innerHTML = `<div><strong>大屏启动中</strong><span>正在整理工作台布局、当前播放歌曲和舞曲表，请稍候片刻。</span></div>`;
       try {
-        const node = document.querySelector(".workspace");
-        const clone = node.cloneNode(true);
-        clone.querySelectorAll("audio,button").forEach(el => el.remove());
-        const wrapper = document.createElement("div");
-        wrapper.style.width = "1200px";
-        wrapper.style.padding = "24px";
-        wrapper.style.background = "#fffaf2";
-        wrapper.appendChild(clone);
-        const data = new XMLSerializer().serializeToString(wrapper);
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1248" height="1600"><foreignObject width="100%" height="100%">${data.replace(/#/g, "%23").replace(/\n/g, " ")}</foreignObject></svg>`;
-        const url = "data:image/svg+xml;charset=utf-8," + svg;
-        els.preview.src = url;
-        els.snapshotStage.classList.remove("is-generating");
-        els.snapshotStage.classList.add("has-image", "is-ready");
-        els.snapshotCaption.textContent = "已生成动态预览快照";
-        els.snapshotPlaceholder.innerHTML = `<div><strong>快照已就绪</strong><span>当前舞曲工作台已被定格为一张浏览器内预览图，可直接查看排版效果。</span></div>`;
-        log("已生成页面快照");
+        openStageView("snapshot");
       } catch (error) {
         els.snapshotStage.classList.remove("is-generating");
-        els.snapshotCaption.textContent = "快照生成失败";
-        els.snapshotPlaceholder.innerHTML = `<div><strong>生成失败</strong><span>${error.message || "浏览器当前无法完成快照渲染，请稍后重试。"}</span></div>`;
+        els.snapshotCaption.textContent = "打开失败";
+        els.snapshotPlaceholder.innerHTML = `<div><strong>打开失败</strong><span>${error.message || "浏览器当前阻止了新页面弹出，请允许弹窗后重试。"}</span></div>`;
         throw error;
       } finally {
         els.snapshotBtn.classList.remove("is-generating");
@@ -1333,7 +1660,13 @@
       $("addPartBtn").addEventListener("click", addPart);
       $("addSongBtn").addEventListener("click", () => addSong().catch(err => log(err.message)));
       $("downloadTxtBtn").addEventListener("click", () => download("舞曲列表.txt", buildTxt(), "text/plain;charset=utf-8"));
-      $("downloadHtmlBtn").addEventListener("click", () => download("song-list.html", buildExportHtml(), "text/html;charset=utf-8"));
+      $("downloadHtmlBtn").addEventListener("click", () => {
+        try {
+          openStageView("html");
+        } catch (err) {
+          log(err.message);
+        }
+      });
       $("snapshotBtn").addEventListener("click", () => buildSnapshot().catch(err => log(err.message)));
       $("prevBtn").addEventListener("click", playPreviousSong);
       $("sequencePlayBtn").addEventListener("click", startSequencePlayback);
