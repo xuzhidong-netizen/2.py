@@ -1,0 +1,32 @@
+/Music
+/build
+/20190920 排曲
+/测试舞曲
+/__pycache__
+/dist
+*.pdf
+# *.txt
+*.xlsx
+*.spec
+# *.png
+*.html
+/.idea
+/.vscode
+/cache
+/.idea
+/.run
+/build
+/dist
+/out
+/main.spec
+main.spec
+/css/wuqu_phone_rep.css
+/css/wuqu_phone_other_rep.css
+main.exe
+舞曲列表生成器.exe
+song-list.png
+舞曲列表.txt
+.DS_Store
+.venv/
+token.ini
+*.pyc

@@ -1,0 +1,221 @@
+@font-face {
+	font-family: "思源黑体";
+	src: url("./css/SourceHanSansSC-Regular-2.otf") format("otf");
+}
+
+
+/* 清除默认样式 */
+body,p,section,nav,header,h2,h3{margin: 0;}
+ul{margin: 0;padding: 0;list-style: none;}
+.clearfix:after{content: '';display: block;clear: both;}
+body{font-size: 16px;line-height: 24px;font-family:  "思源黑体";}
+.center{margin: 0 auto;}
+/* End 清除默认样式 */
+
+/* div#bg */
+body{
+	width: 427px;
+}
+#bg{
+	background-color: rgb(249, 255, 241);
+	padding: 15px 15px 10px 15px;
+	width: 397px;
+	background-image: url(../css/HBDC.png);
+	background-repeat: no-repeat;
+	background-position: center 15px;
+	background-size: 20% auto;
+	-webkit-print-color-adjust: exact;
+	print-color-adjust: exact;
+}
+/* end div#bg */
+/* 配色 */
+#bg{
+	background-color: #eef7f2;
+}
+.party_info{
+    font: bold 16px/16px "思源黑体";
+    color: #2775b6;
+}
+nav .dis,.list .cont{
+	background-color: rgb(228, 243, 205);
+	border-color: #80766e;
+}
+
+nav td{
+	border-bottom: rgb(62, 62, 62) 1px dashed;
+}
+h2{	
+	color: rgb(234, 128, 57);
+} 
+h3{	
+	color: #f28e16;
+}
+.sessions{
+	color: #2775b6;
+}
+.security{
+	color: rgba(231,223,200,0);
+}
+.aim{
+	color: rgb(22, 152, 87);
+}
+nav td{
+	color: black;
+}
+.list .choose{
+	color: #f2481b;
+}
+.sessdur{
+	color: #04837c;
+}
+/* 配色 */
+
+/* header */
+h2{	
+	font: bold 26px/34px "思源黑体";
+	padding-top: 20px;
+	padding-bottom: 20px;
+	text-align: center;
+}
+h3{
+	font: bold 20px/26px "思源黑体";
+	padding-bottom: 20px;
+	text-align: center;
+}
+/* end header */
+
+/* section.info */
+.info{text-indent: 2em;padding: 0 15px;}
+.info .name::before,.info .num::before,.info .time::before{content: " ";}
+.info .name::after,.info .num::after{content: " ";}
+/* end header */
+
+/* partyInfo */
+.party_info{
+	margin-top: 10px;
+}
+.party_info td{
+	width: 397px;
+	padding: 5px 0;
+}
+#place{
+    text-align: center;
+}
+#startTime{
+    text-align: center;
+}
+
+#place::before{
+	content: "地点：";
+}
+#startTime::before{
+	content: "时间：";
+}
+
+/* nav */
+nav{
+	padding: 10px 0; 
+	margin-top: 10px;
+}
+nav .dis{
+	text-align: center;
+	
+}
+nav .dis,.list .cont{
+	padding: 10px 0 15px 0;
+	border-width: 2px;
+	border-style: solid;
+	border-radius: 10px;
+}
+table{
+	border-collapse: collapse;
+}
+nav table{
+	margin: 0 15px;
+}
+nav table td{
+	width: 397px;
+	padding: 5px 0;
+}
+/* end nav */
+
+/* list */
+.list{
+	padding: 0px 0; 
+	margin: 10px 0 10px 0;
+}
+.list .cont{
+	text-align: left;
+	column-gap: 0px;
+}
+.list table{
+	table-layout: fixed;
+	width: 397px;
+	font-size:0;
+}
+.list tr{
+	display: inline-block;
+	padding-left: 15px;
+	margin: 0px;
+}
+.list td{
+	font-size: 16px;
+	line-height: 24px;
+	font-family: "思源黑体";
+	padding: 3px 0px;
+}
+.list .no{
+	width: 26px;
+	vertical-align:top;
+}
+.list .no::after{
+	content: "-";
+}
+.list .music{
+	width: 282px;
+}
+.list .dur{
+	width: 50px;
+}
+.list .timestamp,.timestamp_gap {
+	width: 1px; /*设置横线的宽度 */
+	border-width: 1px 2px;
+	border-style: solid;
+	}
+.list .timestamp {
+	border-color: #c3c3b9;
+	background-color:  #c3c3b9;
+	}
+.list .timestamp_gap {
+	border-color: #bc8686;
+	background-color: #bc8686;
+}
+.sessions{
+	font: bold 18px/18px "思源黑体";
+	margin: 10px 0px;
+	text-align: center;
+}
+.sessdur{
+	font: normal 14px/14px "思源黑体";
+	margin-bottom: 4px;
+	text-align: center;
+}
+footer{
+	text-align: right;
+	padding: 15px 15px 0 15px;
+}
+/* end list */
+
+.security{
+	margin-top: -25px;
+	text-align: center;
+	user-select: none;
+}
+.aim{
+	text-align: center;
+	font-family: "华文行楷";
+	font-size: 18px;
+}
+.info td{
+	hyphens: auto;
+}

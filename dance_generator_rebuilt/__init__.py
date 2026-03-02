@@ -1,0 +1,1 @@
+"""Rebuilt dance list generator."""

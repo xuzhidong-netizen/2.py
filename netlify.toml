@@ -1,0 +1,7 @@
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/"
+  to = "/dance_generator_rebuilt/standalone.html"
+  status = 200
