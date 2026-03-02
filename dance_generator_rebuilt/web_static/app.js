@@ -59,7 +59,7 @@ function secondsToClock(total) {
 function collectMeta() {
   return {
     title: el.titleInput.value.trim() || "青春舞会舞曲",
-    name: el.authorInput.value.trim() || "Guokr",
+    name: el.authorInput.value.trim() || "冬冬",
     club: el.clubInput.value,
     place: el.placeInput.value,
     date: el.dateInput.value.trim(),

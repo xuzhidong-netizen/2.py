@@ -55,7 +55,7 @@ class Distribution:
 @dataclass(slots=True)
 class DanceList:
     title: str = "青春舞会舞曲"
-    name: str = "Guokr"
+    name: str = "冬冬"
     date: str = ""
     club: str = "华中大国际标准交谊舞俱乐部"
     place: str = "老年活动中心"

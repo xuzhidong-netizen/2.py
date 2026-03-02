@@ -61,7 +61,7 @@ def dance_list_to_dict(dance_list: DanceList) -> dict:
 def dance_list_from_dict(payload: dict) -> DanceList:
     dance_list = DanceList(
         title=payload.get("title") or "青春舞会舞曲",
-        name=payload.get("name") or "Guokr",
+        name=payload.get("name") or "冬冬",
         date=payload.get("date") or default_date_string(),
         club=payload.get("club") or "华中大国际标准交谊舞俱乐部",
         place=payload.get("place") or "老年活动中心",
