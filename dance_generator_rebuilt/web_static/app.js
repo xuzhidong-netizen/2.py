@@ -12,6 +12,7 @@ const state = {
   issues: [],
   exportedFiles: null,
   currentAudioIndex: 0,
+  sequenceMode: false,
 };
 
 const el = {};
@@ -207,6 +208,10 @@ function renderAll() {
   renderExports();
 }
 
+function getCurrentSongs() {
+  return state.danceList?.parts?.flatMap((part) => part.music) || [];
+}
+
 async function refreshState() {
   state.danceList = buildDanceListFromTable();
   const data = await api("/api/update", {
@@ -333,13 +338,44 @@ function wireTableInteractions() {
       current.parentNode.insertBefore(dragged, before ? current : current.nextSibling);
     });
     row.querySelector('[data-action="delete"]').addEventListener("click", () => deleteSongRow(row));
-    row.querySelector('[data-action="play"]').addEventListener("click", () => playSong(row.dataset.filepath));
+    row.querySelector('[data-action="play"]').addEventListener("click", () => {
+      const index = Number(row.querySelector("[data-num]").textContent) - 1;
+      playSongByIndex(index, false);
+    });
   });
 }
 
-function playSong(filePath) {
-  el.audioPlayer.src = `/api/file?path=${encodeURIComponent(filePath)}`;
+function playSongByIndex(index, sequenceMode = state.sequenceMode) {
+  const songs = getCurrentSongs();
+  if (!songs.length) {
+    log("当前没有可播放的舞曲");
+    return;
+  }
+  const normalizedIndex = ((index % songs.length) + songs.length) % songs.length;
+  const song = songs[normalizedIndex];
+  state.currentAudioIndex = normalizedIndex;
+  state.sequenceMode = sequenceMode;
+  el.audioPlayer.src = `/api/file?path=${encodeURIComponent(song.filepath)}`;
   el.audioPlayer.play().catch(() => {});
+  log(`正在播放 ${String(song.num).padStart(2, "0")} ${song.dance}-${song.title}`);
+}
+
+function playNextSong() {
+  if (!getCurrentSongs().length) return;
+  playSongByIndex(state.currentAudioIndex + 1, state.sequenceMode);
+}
+
+function playPreviousSong() {
+  if (!getCurrentSongs().length) return;
+  playSongByIndex(state.currentAudioIndex - 1, state.sequenceMode);
+}
+
+function startSequencePlayback() {
+  if (!getCurrentSongs().length) {
+    log("当前没有可播放的舞曲");
+    return;
+  }
+  playSongByIndex(state.currentAudioIndex || 0, true);
 }
 
 function wireButtons() {
@@ -352,9 +388,22 @@ function wireButtons() {
   document.getElementById("addSongBtn").addEventListener("click", () => handleAddSong().catch((error) => log(error.message)));
   document.getElementById("addPartBtn").addEventListener("click", addPart);
   document.getElementById("deletePartBtn").addEventListener("click", deleteLastPart);
+  document.getElementById("prevBtn").addEventListener("click", playPreviousSong);
+  document.getElementById("sequencePlayBtn").addEventListener("click", startSequencePlayback);
+  document.getElementById("nextBtn").addEventListener("click", playNextSong);
   document.getElementById("playToggleBtn").addEventListener("click", () => {
     if (el.audioPlayer.paused) el.audioPlayer.play().catch(() => {});
     else el.audioPlayer.pause();
+  });
+  el.audioPlayer.addEventListener("ended", () => {
+    const songs = getCurrentSongs();
+    if (!songs.length || !state.sequenceMode) return;
+    if (state.currentAudioIndex >= songs.length - 1) {
+      state.sequenceMode = false;
+      log("顺序播放已完成");
+      return;
+    }
+    playSongByIndex(state.currentAudioIndex + 1, true);
   });
 }
 

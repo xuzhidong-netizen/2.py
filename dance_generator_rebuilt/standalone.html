@@ -336,6 +336,9 @@
           <h2>排曲工作台</h2>
         </div>
         <div class="hero-right">
+          <button id="prevBtn">上一首</button>
+          <button id="sequencePlayBtn">顺序播放</button>
+          <button id="nextBtn">下一首</button>
           <button id="playToggleBtn">播放 / 暂停</button>
           <audio id="player" controls></audio>
         </div>
@@ -404,7 +407,9 @@
     const state = {
       parts: [{ part_title: "", music: [] }],
       issues: [],
-      currentSong: null
+      currentSong: null,
+      currentAudioIndex: 0,
+      sequenceMode: false
     };
 
     const els = {};
@@ -676,11 +681,7 @@
         });
         row.querySelector(".play-row").addEventListener("click", () => {
           const index = Number(row.dataset.num) - 1;
-          const song = allSongs()[index];
-          if (!song) return;
-          state.currentSong = song;
-          els.player.src = song.url;
-          els.player.play().catch(() => {});
+          playSongAtIndex(index, false);
         });
         row.querySelector(".delete-row").addEventListener("click", () => {
           const index = Number(row.dataset.num) - 1;
@@ -700,6 +701,40 @@
       renderStats();
       renderIssues();
       renderTable();
+    }
+
+    function playSongAtIndex(index, sequenceMode = state.sequenceMode) {
+      const songs = allSongs();
+      if (!songs.length) {
+        log("当前没有可播放的舞曲");
+        return;
+      }
+      const normalizedIndex = ((index % songs.length) + songs.length) % songs.length;
+      const song = songs[normalizedIndex];
+      state.currentSong = song;
+      state.currentAudioIndex = normalizedIndex;
+      state.sequenceMode = sequenceMode;
+      els.player.src = song.url;
+      els.player.play().catch(() => {});
+      log(`正在播放 ${String(song.num).padStart(2,"0")} ${song.dance}-${song.title}`);
+    }
+
+    function playNextSong() {
+      if (!allSongs().length) return;
+      playSongAtIndex(state.currentAudioIndex + 1, state.sequenceMode);
+    }
+
+    function playPreviousSong() {
+      if (!allSongs().length) return;
+      playSongAtIndex(state.currentAudioIndex - 1, state.sequenceMode);
+    }
+
+    function startSequencePlayback() {
+      if (!allSongs().length) {
+        log("当前没有可播放的舞曲");
+        return;
+      }
+      playSongAtIndex(state.currentAudioIndex || 0, true);
     }
 
     function validateRules() {
@@ -857,9 +892,22 @@
       $("downloadTxtBtn").addEventListener("click", () => download("舞曲列表.txt", buildTxt(), "text/plain;charset=utf-8"));
       $("downloadHtmlBtn").addEventListener("click", () => download("song-list.html", buildExportHtml(), "text/html;charset=utf-8"));
       $("snapshotBtn").addEventListener("click", () => buildSnapshot().catch(err => log(err.message)));
+      $("prevBtn").addEventListener("click", playPreviousSong);
+      $("sequencePlayBtn").addEventListener("click", startSequencePlayback);
+      $("nextBtn").addEventListener("click", playNextSong);
       $("playToggleBtn").addEventListener("click", () => {
         if (els.player.paused) els.player.play().catch(() => {});
         else els.player.pause();
+      });
+      els.player.addEventListener("ended", () => {
+        const songs = allSongs();
+        if (!songs.length || !state.sequenceMode) return;
+        if (state.currentAudioIndex >= songs.length - 1) {
+          state.sequenceMode = false;
+          log("顺序播放已完成");
+          return;
+        }
+        playSongAtIndex(state.currentAudioIndex + 1, true);
       });
     }
 
