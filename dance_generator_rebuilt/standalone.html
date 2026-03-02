@@ -205,6 +205,9 @@
 
     .song-row { cursor: grab; }
     .song-row.dragging { opacity: 0.4; }
+    .song-row.is-playing td {
+      background: linear-gradient(90deg, rgba(179,72,45,0.16), rgba(223,125,70,0.08));
+    }
     .part-row td {
       background: linear-gradient(90deg, rgba(179,72,45,0.12), rgba(179,72,45,0.03));
       font-weight: 700;
@@ -701,6 +704,15 @@
       renderStats();
       renderIssues();
       renderTable();
+      updatePlayingRow();
+    }
+
+    function updatePlayingRow() {
+      const activeNum = state.currentAudioIndex + 1;
+      [...els.songsBody.querySelectorAll(".song-row")].forEach(row => {
+        const rowNum = Number(row.dataset.num || "0");
+        row.classList.toggle("is-playing", rowNum === activeNum);
+      });
     }
 
     function playSongAtIndex(index, sequenceMode = state.sequenceMode) {
@@ -717,6 +729,7 @@
       els.player.src = song.url;
       els.player.play().catch(() => {});
       log(`正在播放 ${String(song.num).padStart(2,"0")} ${song.dance}-${song.title}`);
+      updatePlayingRow();
     }
 
     function playNextSong() {
@@ -899,12 +912,15 @@
         if (els.player.paused) els.player.play().catch(() => {});
         else els.player.pause();
       });
+      els.player.addEventListener("play", updatePlayingRow);
+      els.player.addEventListener("pause", updatePlayingRow);
       els.player.addEventListener("ended", () => {
         const songs = allSongs();
         if (!songs.length || !state.sequenceMode) return;
         if (state.currentAudioIndex >= songs.length - 1) {
           state.sequenceMode = false;
           log("顺序播放已完成");
+          updatePlayingRow();
           return;
         }
         playSongAtIndex(state.currentAudioIndex + 1, true);

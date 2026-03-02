@@ -161,6 +161,14 @@ function renderExports() {
   }
 }
 
+function updatePlayingRow() {
+  const activeNum = state.currentAudioIndex + 1;
+  [...el.songsBody.querySelectorAll(".song-row")].forEach((row) => {
+    const rowNum = Number(row.querySelector("[data-num]")?.textContent || "0");
+    row.classList.toggle("is-playing", rowNum === activeNum);
+  });
+}
+
 function renderTable() {
   const list = state.danceList;
   if (!list) {
@@ -206,6 +214,7 @@ function renderAll() {
   renderIssues();
   renderTable();
   renderExports();
+  updatePlayingRow();
 }
 
 function getCurrentSongs() {
@@ -358,6 +367,7 @@ function playSongByIndex(index, sequenceMode = state.sequenceMode) {
   el.audioPlayer.src = `/api/file?path=${encodeURIComponent(song.filepath)}`;
   el.audioPlayer.play().catch(() => {});
   log(`正在播放 ${String(song.num).padStart(2, "0")} ${song.dance}-${song.title}`);
+  updatePlayingRow();
 }
 
 function playNextSong() {
@@ -395,12 +405,15 @@ function wireButtons() {
     if (el.audioPlayer.paused) el.audioPlayer.play().catch(() => {});
     else el.audioPlayer.pause();
   });
+  el.audioPlayer.addEventListener("play", updatePlayingRow);
+  el.audioPlayer.addEventListener("pause", updatePlayingRow);
   el.audioPlayer.addEventListener("ended", () => {
     const songs = getCurrentSongs();
     if (!songs.length || !state.sequenceMode) return;
     if (state.currentAudioIndex >= songs.length - 1) {
       state.sequenceMode = false;
       log("顺序播放已完成");
+      updatePlayingRow();
       return;
     }
     playSongByIndex(state.currentAudioIndex + 1, true);
