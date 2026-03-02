@@ -427,9 +427,9 @@
         <div class="buttons">
           <button class="primary" id="loadBtn">读取文件</button>
           <button id="loadCloudBtn">加载云端前3首示例</button>
-          <button id="downloadCloudBtn">下载前3首示例包</button>
+          <button id="downloadCloudBtn">下载前3首示例舞曲</button>
           <button id="loadCloudFullBtn">加载云端全部示范舞曲</button>
-          <button id="downloadCloudFullBtn">下载全部示范舞曲包</button>
+          <button id="downloadCloudFullBtn">下载全部示范舞曲</button>
           <button id="checkBtn">检查排曲</button>
           <button id="addPartBtn">增加分场</button>
           <button id="addSongBtn">增加舞曲</button>
@@ -1052,7 +1052,7 @@
     }
 
     async function loadCloudSample() {
-      log("正在加载云端前3首示例歌单...");
+      log("正在加载云端前3首示例舞曲...");
       const response = await fetch(CLOUD_PLAYLIST_URL, { cache: "no-store" });
       if (!response.ok) {
         throw new Error("云端歌单读取失败");
@@ -1061,7 +1061,7 @@
       const tracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
       const playableTracks = tracks.filter(track => track.audio_url);
       if (!playableTracks.length) {
-        log("云端歌单暂未配置单曲直链，已为你打开前3首示例包下载链接");
+        log("云端歌单暂未配置单曲直链，已为你打开前3首示例舞曲下载链接");
         window.open(playlist.download_url || CLOUD_SAMPLE_URL, "_blank");
         return;
       }
@@ -1087,11 +1087,11 @@
       renumber();
       state.issues = [];
       renderAll();
-      log(`已导入云端前3首示例歌单 ${allSongs().length} 首`);
+      log(`已导入云端前3首示例舞曲 ${allSongs().length} 首`);
     }
 
     async function loadCloudFullSample() {
-      log("正在加载云端全部示例歌单...");
+      log("正在加载云端全部示范舞曲...");
       const response = await fetch(CLOUD_FULL_PLAYLIST_URL, { cache: "no-store" });
       if (!response.ok) {
         throw new Error("云端全部歌单读取失败");
@@ -1100,7 +1100,7 @@
       const tracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
       const playableTracks = tracks.filter(track => track.audio_url);
       if (!playableTracks.length) {
-        log("云端全部歌单暂未配置单曲直链，已为你打开全部示例包下载链接");
+        log("云端全部歌单暂未配置单曲直链，已为你打开全部示范舞曲下载链接");
         window.open(playlist.download_url || CLOUD_FULL_URL, "_blank");
         return;
       }
@@ -1126,7 +1126,7 @@
       renumber();
       state.issues = [];
       renderAll();
-      log(`已导入云端全部示例歌单 ${allSongs().length} 首`);
+      log(`已导入云端全部示范舞曲 ${allSongs().length} 首`);
     }
 
     function addPart() {
@@ -1156,12 +1156,12 @@
     function bindTopActions() {
       $("loadBtn").addEventListener("click", () => loadFiles().catch(err => log(err.message)));
       $("loadCloudBtn").addEventListener("click", () => loadCloudSample().catch(err => {
-        log(`${err.message}，已打开示例包下载链接`);
+        log(`${err.message}，已打开示例舞曲下载链接`);
         triggerDownload(CLOUD_SAMPLE_URL, "示范舞曲-top3.zip");
       }));
       $("downloadCloudBtn").addEventListener("click", () => triggerDownload(CLOUD_SAMPLE_URL, "示范舞曲-top3.zip"));
       $("loadCloudFullBtn").addEventListener("click", () => loadCloudFullSample().catch(err => {
-        log(`${err.message}，已打开全部示例包下载链接`);
+        log(`${err.message}，已打开全部示范舞曲下载链接`);
         triggerDownload(CLOUD_FULL_URL, "示范舞曲.zip");
       }));
       $("downloadCloudFullBtn").addEventListener("click", () => triggerDownload(CLOUD_FULL_URL, "示范舞曲.zip"));
