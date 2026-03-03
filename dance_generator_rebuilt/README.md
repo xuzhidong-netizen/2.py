@@ -82,6 +82,40 @@ run_web.bat
 - 这是纯前端静态站点，不能在用户机器上直接批量重命名或复制本地文件。
 - 浏览器对本地目录读取依赖用户手动选择文件夹，属于预期限制。
 
+## 云端直播放
+
+当前仓库已支持 `songs.json` / `cloud_sample.json` 结构。
+
+关键字段：
+
+- `download_url`: 整包下载链接
+- `tracks[].audio_url`: 单曲公网直链
+- `tracks[].asset_name`: 原始文件名
+- `tracks[].dance`: 舞种
+- `tracks[].title`: 曲名
+- `tracks[].other`: 备注或歌手
+
+生成歌单模板：
+
+```bash
+python3 dance_generator_rebuilt/generate_cloud_playlist.py \
+  "/Users/zhidongxu/Downloads/1.24" \
+  "dance_generator_rebuilt/cloud_sample.json"
+```
+
+如果你已经把 mp3 上传到了一个可直链目录，例如：
+
+`https://example.com/audio/1.24`
+
+可以直接生成可播放版本：
+
+```bash
+python3 dance_generator_rebuilt/generate_cloud_playlist.py \
+  "/Users/zhidongxu/Downloads/1.24" \
+  "dance_generator_rebuilt/cloud_sample.json" \
+  --base-audio-url "https://example.com/audio/1.24"
+```
+
 ## 目录结构
 
 ```text

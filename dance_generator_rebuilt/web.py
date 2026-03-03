@@ -38,7 +38,13 @@ async def json_body(request: Request) -> dict:
 
 
 async def home(_: Request) -> HTMLResponse:
-    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    html = (PACKAGE_ROOT / "standalone.html").read_text(encoding="utf-8")
+    html = (
+        html
+        .replace("./web_static/示范舞曲-top3.zip", "/static/示范舞曲-top3.zip")
+        .replace("./cloud_sample.json", "/static/cloud_sample.json")
+        .replace("./cloud_full.json", "/static/cloud_full.json")
+    )
     return HTMLResponse(html)
 
 

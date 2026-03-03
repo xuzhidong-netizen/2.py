@@ -697,7 +697,7 @@
     const KNOWN = new Set([...HANDLE, ...FRAME, ...BALLROOM, ...COLLECTIVE, "开场曲", "结束曲"]);
     const CLOUD_SAMPLE_URL = "./web_static/示范舞曲-top3.zip";
     const CLOUD_PLAYLIST_URL = "./cloud_sample.json";
-    const CLOUD_FULL_URL = "./web_static/示范舞曲.zip";
+    const CLOUD_FULL_URL = "https://github.com/xuzhidong-netizen/2.py/releases/download/v1.24-assets/1.24.zip";
     const CLOUD_FULL_PLAYLIST_URL = "./cloud_full.json";
 
     const state = {
@@ -1156,8 +1156,8 @@
       };
     }
 
-    function buildStagePayload() {
-      syncStateFromTable();
+    function buildStagePayload(syncTable = true) {
+      if (syncTable) syncStateFromTable();
       const meta = currentMeta();
       return {
         meta,
@@ -1547,7 +1547,7 @@
     }
 
     function openStageView(mode = "stage") {
-      const payload = buildStagePayload();
+      const payload = buildStagePayload(true);
       const html = buildStageHtml(payload);
       stageWindow = window.open("", "_blank");
       if (!stageWindow) throw new Error("浏览器阻止了大屏页面弹出");
@@ -1568,7 +1568,7 @@
 
     function broadcastStageState() {
       if ((!stageWindow || stageWindow.closed) && !stageChannel) return;
-      const payload = buildStagePayload();
+      const payload = buildStagePayload(false);
       if (stageWindow && !stageWindow.closed && typeof stageWindow.renderStagePage === "function") {
         stageWindow.renderStagePage(payload);
       }
