@@ -570,6 +570,7 @@
           <button id="downloadCloudBtn">下载前3首示例舞曲</button>
           <button id="loadCloudFullBtn">加载云端全部示范舞曲</button>
           <button id="downloadCloudFullBtn">下载全部示范舞曲</button>
+          <button id="libraryBtn">舞曲库</button>
           <button id="checkBtn">检查排曲</button>
           <button id="addPartBtn">增加分场</button>
           <button id="addSongBtn">增加舞曲</button>
@@ -1525,6 +1526,220 @@
 </html>`;
     }
 
+    function buildLibraryHtml() {
+      const libraryGroups = [
+        {
+          title: "架型舞",
+          desc: "对应检查排曲中的架型舞相间规则。",
+          dances: [
+            { label: "慢三", note: "FRAME 分类" },
+            { label: "慢四", note: "FRAME 分类" },
+            { label: "并四", note: "FRAME 分类" }
+          ]
+        },
+        {
+          title: "拉手舞",
+          desc: "对应检查排曲中的拉手舞相间规则。",
+          dances: [
+            { label: "吉特巴", note: "HANDLE 分类" },
+            { label: "平四", note: "HANDLE 分类" },
+            { label: "伦巴", note: "HANDLE 分类" }
+          ]
+        },
+        {
+          title: "集体舞",
+          desc: "对应检查排曲中的集体舞重复检查。",
+          dances: [
+            { label: "16步", note: "识别为 16 步类集体舞" },
+            { label: "32步", note: "COLLECTIVE 分类" },
+            { label: "64步", note: "COLLECTIVE 分类" }
+          ]
+        }
+      ];
+      const cards = libraryGroups.map((group) => `
+        <section class="library-card">
+          <div class="library-card-head">
+            <div>
+              <p class="library-eyebrow">Dance Library</p>
+              <h2>${group.title}</h2>
+            </div>
+            <span>${group.desc}</span>
+          </div>
+          <div class="library-tags">
+            ${group.dances.map((dance) => `
+              <article class="library-tag">
+                <strong>${dance.label}</strong>
+                <span>${dance.note}</span>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+      `).join("");
+      return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>舞曲库</title>
+  <style>
+    :root {
+      --bg: #fff6ef;
+      --panel: rgba(255,255,255,0.78);
+      --ink: #2c1d14;
+      --muted: #70594d;
+      --accent: #d66b2d;
+      --accent-soft: rgba(214, 107, 45, 0.12);
+      --line: rgba(87, 53, 32, 0.12);
+      --shadow: 0 24px 60px rgba(90, 53, 26, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Source Han Sans SC", "Noto Sans SC", "PingFang SC", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255, 182, 135, 0.55), transparent 24%),
+        radial-gradient(circle at 85% 15%, rgba(255, 233, 208, 0.9), transparent 20%),
+        linear-gradient(180deg, #fffaf6 0%, #fff2e7 100%);
+    }
+    .library-shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+      display: grid;
+      gap: 20px;
+    }
+    .library-hero,
+    .library-card,
+    .library-note {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+    .library-hero {
+      position: relative;
+      overflow: hidden;
+      padding: 28px;
+    }
+    .library-hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.45) 48%, transparent 70%);
+      transform: translateX(-140%);
+      animation: librarySweep 6.4s linear infinite;
+      pointer-events: none;
+    }
+    .library-eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .library-hero h1,
+    .library-card h2 {
+      margin: 0;
+      font-family: "Source Han Serif SC", "Noto Serif SC", serif;
+    }
+    .library-hero h1 {
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 1.08;
+    }
+    .library-hero p,
+    .library-card-head span,
+    .library-note p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .library-grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .library-card {
+      padding: 22px;
+      animation: libraryRise 420ms ease both;
+    }
+    .library-card-head {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .library-tags {
+      display: grid;
+      gap: 12px;
+    }
+    .library-tag {
+      position: relative;
+      overflow: hidden;
+      padding: 16px 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(214, 107, 45, 0.18);
+      background: linear-gradient(135deg, rgba(214, 107, 45, 0.12), rgba(255, 255, 255, 0.72));
+    }
+    .library-tag::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.38) 50%, transparent 72%);
+      transform: translateX(-140%);
+      animation: librarySweep 5.2s linear infinite;
+    }
+    .library-tag strong,
+    .library-tag span {
+      position: relative;
+      z-index: 1;
+      display: block;
+    }
+    .library-tag strong {
+      font-size: 22px;
+      line-height: 1.2;
+    }
+    .library-tag span {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .library-note {
+      padding: 20px 22px;
+    }
+    @keyframes librarySweep {
+      from { transform: translateX(-140%); }
+      to { transform: translateX(160%); }
+    }
+    @keyframes libraryRise {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 960px) {
+      .library-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="library-shell">
+    <section class="library-hero">
+      <p class="library-eyebrow">Dance Library</p>
+      <h1>舞曲库</h1>
+      <p>这个页面按当前检查排曲规则整理常用舞种，供排曲时快速对照。架型舞、拉手舞、集体舞的分组与规则检查里的分类保持一致。</p>
+    </section>
+    <section class="library-grid">${cards}</section>
+    <section class="library-note">
+      <p>对应关系说明：检查排曲时会检查架型舞与拉手舞是否相间，并检查集体舞是否重复。这里的“16步”是 16 步类集体舞的总称，实际识别时会归到具体的 16 步舞名。</p>
+    </section>
+  </main>
+</body>
+</html>`;
+    }
+
     function buildTxt() {
       syncStateFromTable();
       const meta = currentMeta();
@@ -1564,6 +1779,16 @@
       const channel = ensureStageChannel();
       if (channel) channel.postMessage(payload);
       log(mode === "snapshot" ? "已打开快照大屏页面" : "已打开大屏 HTML 页面");
+    }
+
+    function openLibraryView() {
+      const libraryWindow = window.open("", "_blank");
+      if (!libraryWindow) throw new Error("浏览器阻止了舞曲库页面弹出");
+      libraryWindow.document.open();
+      libraryWindow.document.write(buildLibraryHtml());
+      libraryWindow.document.close();
+      libraryWindow.focus();
+      log("已打开舞曲库页面");
     }
 
     function broadcastStageState() {
@@ -1772,6 +1997,13 @@
         triggerDownload(CLOUD_FULL_URL, "示范舞曲.zip");
       }));
       $("downloadCloudFullBtn").addEventListener("click", () => triggerDownload(CLOUD_FULL_URL, "示范舞曲.zip"));
+      $("libraryBtn").addEventListener("click", () => {
+        try {
+          openLibraryView();
+        } catch (err) {
+          log(err.message);
+        }
+      });
       $("checkBtn").addEventListener("click", validateRules);
       $("addPartBtn").addEventListener("click", addPart);
       $("addSongBtn").addEventListener("click", () => addSong().catch(err => log(err.message)));
