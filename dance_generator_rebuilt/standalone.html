@@ -65,6 +65,48 @@
 
     .subtle, .hint { color: var(--muted); margin: 0; }
 
+    .beta-callout {
+      margin-top: 16px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(45, 112, 179, 0.18);
+      background: linear-gradient(135deg, rgba(52, 142, 255, 0.14), rgba(121, 211, 255, 0.12));
+      display: grid;
+      gap: 12px;
+    }
+
+    .beta-copy strong {
+      display: block;
+      font-size: 15px;
+      color: #0f4f8f;
+    }
+
+    .beta-copy span {
+      display: block;
+      margin-top: 6px;
+      color: #2f5f7f;
+      line-height: 1.6;
+    }
+
+    .test-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      min-height: 44px;
+      padding: 11px 18px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #1b6ed1, #38a7ff);
+      color: white;
+      text-decoration: none;
+      font-weight: 700;
+      box-shadow: 0 12px 24px rgba(27, 110, 209, 0.22);
+    }
+
+    .test-link:hover {
+      filter: brightness(1.04);
+    }
+
     .fields {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -527,6 +569,13 @@
         <p class="eyebrow">Standalone HTML</p>
         <h1>舞曲生成器</h1>
         <p class="subtle">双击打开即可使用，不需要起本地服务。</p>
+        <div class="beta-callout">
+          <div class="beta-copy">
+            <strong>是否使用测试版本 2.0</strong>
+            <span>已更新舞曲库功能及舞曲识别功能，可直接跳转到测试版项目主页体验。</span>
+          </div>
+          <a class="test-link" href="https://xuzhidong-netizen.github.io/3.py" target="_blank" rel="noopener">打开测试版本 2.0</a>
+        </div>
       </section>
 
       <section class="card">
